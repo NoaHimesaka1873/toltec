@@ -84,6 +84,7 @@ log() {
 #
 # rm1 - for reMarkable 1
 # rm2 - for reMarkable 2
+# rmpp - for reMarkable Paper Pro
 # unknown
 identify-model() {
     local device_id
@@ -96,6 +97,9 @@ identify-model() {
         "reMarkable 2.0")
             echo "rm2"
             ;;
+        "reMarkable Ferrari")
+            echo "rmpp"
+            ;;
         *)
             echo "unknown"
             ;;
@@ -106,7 +110,11 @@ identify-model() {
 #
 # Output: Current version in the X.Y.Z.P format
 get-release-version() {
-    awk -F= '/RELEASE_VERSION/{print $2}' /usr/share/remarkable/update.conf
+    if [ -f /usr/share/remarkable/update.conf ]; then
+        awk -F= '/RELEASE_VERSION/{print $2}' /usr/share/remarkable/update.conf
+    else
+        csl deviceinfo -v | awk -F: '/IMAGE_VERSION/{print $2}' - | sed "s/ //"
+    fi
 }
 
 # Check to see if the version is supported and error if it isn't supported
@@ -393,11 +401,11 @@ update-package-arch() {
         return 3
     fi
     case "$arch" in
-        rmallos2 | rmallos3 | rmallos3v5)
+        rmallos2 | rmallos3 | rmallos3v5 | rmallos3v18 )
             version="$(identify-support-version)"
             new_status="$(echo "$status" | replace-string "Architecture: ${arch}" "Architecture: rmall${version}")"
             ;;
-        rm1os2 | rm1os3 | rm1os3v5 | rm2os2 | rm2os3 | rm2os3v5)
+        rm1os2 | rm1os3 | rm1os3v5 | rm1os3v18 | rm2os2 | rm2os3 | rm2os3v5 | rm2os3v18 | rmppos3v18 )
             model="$(identify-model)"
             version="$(identify-support-version)"
             new_status="$(echo "$status" | replace-string "Architecture: ${arch}" "Architecture: ${model}${version}")"
@@ -566,8 +574,15 @@ create-entware-conf() {
 
 # Define custom configuration in other files in this directory
 # then run \`toltecctl generate-opkg-conf\` to regenerate '$opkg_conf'
-
 arch all 100
+CONF
+    if [[ (identify-model) == "rmpp" ]]; then
+        cat >> "$opkg_conf_dir"/10-entware.conf << CONF
+arch aarch64-3.10
+src/gz entware https://bin.entware.net/aarch64-k3.10
+CONF
+    else
+        cat >> "$opkg_conf_dir"/10-entware.conf << CONF
 arch armv7-3.2 160
 src/gz entware https://bin.entware.net/armv7sf-k3.2
 CONF
@@ -624,8 +639,10 @@ identify-support-version() {
         echo "os2"
     elif compare-versions "3.8" "$current_version"; then
         echo "os3"
-    elif compare-versions "4.0" "$current_version"; then
+    elif compare-versions "3.18" "$current_version"; then
         echo "os3v5"
+    elif compare-versions "4.0" "$current_version"; then
+        echo "os3v18"
     else
         echo "unknown"
     fi
@@ -674,6 +691,10 @@ CONF
 
 # Re-enable Toltec install after system update
 reenable() {
+    if [[ (identify-model) == "rmpp" ]]; then
+        log INFO "Making root partition writable"
+        sed -i "s/ro/rw/" /etc/fstab
+    fi
     log INFO "Mounting /opt"
     add-bind-mount "$toltec_src" "$toltec_dest"
     switch-branch "$(get-branch)"
@@ -732,6 +753,10 @@ install-standalone-opkg() {
     fi
     local opkg_remote=https://bin.entware.net/armv7sf-k3.2/installer/opkg
 
+    if [[ (identify-model) == "rmpp" ]]; then
+        opkg_remote=https://bin.entware.net/aarch64-k3.10/installer/opkg
+    fi
+
     if ! "$wget" --no-verbose "$opkg_remote" --output-document "$opkg_path"; then
         log ERROR "Unable to fetch standalone opkg, make sure you have a stable Wi-Fi connection"
         return 1
@@ -750,6 +775,11 @@ install-standalone-wget() {
     local wget_path="${toltec_share}/wget"
     local wget_remote=http://toltec-dev.org/thirdparty/bin/wget-v1.21.1-1
     local wget_checksum=c258140f059d16d24503c62c1fdf747ca843fe4ba8fcd464a6e6bda8c3bbb6b5
+
+    if [[ (identify-model) == "rmpp" ]]; then
+        wget_remote=placeholder
+        wget_checksum=placeholder
+    fi
 
     if [ -f "$wget_path" ] && ! [[ -e $wget_path ]] || ! sha256sum -c <(echo "$wget_checksum  $wget_path") > /dev/null 2>&1; then
         rm "$wget_path"
@@ -802,6 +832,10 @@ uninstall() {
 
     # Re-enable xochitl if needed
     systemctl enable xochitl
+
+    if [[ (identify-model) == "rmpp" ]]; then
+        log INFO "You should make the root partition read-only again by editing /etc/fstab"
+    fi
 }
 
 # The current toltec install state

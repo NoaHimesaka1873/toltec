@@ -25,9 +25,9 @@ case "$(uname -m)" in
     "armv7l")
         arch="armv7sf-k3.2"
         ;;
-    #"aarch64)
-    #    arch="aarch64-k3.10"
-    #    ;;
+    "aarch64")
+        arch="aarch64-k3.10"
+        ;;
     *)
         echo "Unsupported device architecture"
         exit 1
@@ -123,6 +123,11 @@ wget-bootstrap() {
     local wget_remote=http://toltec-dev.org/thirdparty/bin/wget-v1.21.1-1
     local wget_checksum=c258140f059d16d24503c62c1fdf747ca843fe4ba8fcd464a6e6bda8c3bbb6b5
 
+    if [[ $arch == "aarch64-k3.10" ]]; then
+        wget_remote="placeholder"
+        wget_checksum="placeholder"
+    fi
+
     if [[ ! -x $wget_path ]]; then
         if [[ -e $wget_path ]]; then
             log ERROR "'$wget_path' exists, but is not executable"
@@ -188,6 +193,12 @@ main() {
     # Make sure there’s no existing Toltec install
     # (otherwise it could get wiped out by the error-cleanup hook below)
     check-installed
+
+    # Make rootfs read/write on rMPP
+    if [[ $arch == aarch64-k3.10 ]]; then
+        mount -o remount,rw /
+        umount -R /etc
+    fi
 
     # Fetch temporary wget and opkg binaries used for bootstrapping
     wget-bootstrap
