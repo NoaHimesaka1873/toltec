@@ -40,9 +40,10 @@ The following values are accepted:
 
 Name        | Meaning
 ------------|-------------------------------------------------------------------------
-`rmall`     | Packages which work on all reMarkable devices without modification.
+`rmall`     | Packages which work on all reMarkable devices without modification. These packages must be cpu architecture independent, which generally means that they do not contain binaries, only scripts and configuration files.
 `rm1`       | Packages requiring reMarkable 1-specific resources or compilation flags.
 `rm2`       | Packages requiring reMarkable 2-specific resources or compilation flags.
+`rmpp`      | Packages requiring reMarkable Paper Pro-specific resources or compilation flags.
 `rmallos2` | Packages which work on all reMarkable devices without modification, but only on the 2.x series of operating system.
 `rm1os2`   | Packages requiring reMarkable 1-specific resources or compilation flags, but only on the 2.x series of operating system.
 `rm2os2`   | Packages requiring reMarkable 2-specific resources or compilation flags, but only on the 2.x series of operating system.
@@ -52,6 +53,10 @@ Name        | Meaning
 `rmallos3v5` | Packages which work on all reMarkable devices without modification, but only on 3.5.2 or newer operating system versions.
 `rm1os3v5`   | Packages requiring reMarkable 1-specific resources or compilation flags, but only on 3.5.2 or newer operating system versions.
 `rm2os3v5`   | Packages requiring reMarkable 2-specific resources or compilation flags, but only on 3.5.2 or newer operating system versions.
+`rmallos3v18` | Packages which work on all reMarkable devices without modification, but only on 3.18.0 or newer operating system versions. These packages must be cpu architecture independent, which generally means that they do not contain binaries, only scripts and configuration files.
+`rm1os3v18`   | Packages requiring reMarkable 1-specific resources or compilation flags, but only on 3.18.0 or newer operating system versions.
+`rm2os3v18`   | Packages requiring reMarkable 2-specific resources or compilation flags, but only on 3.18.0 or newer operating system versions.
+`rmppos3v18`   | Packages requiring reMarkable Paper Pro-specific resources or compilation flags, but only on 3.18.0 or newer operating system versions.
 
 For example, use `archs=(rm1)` for a package that only works on reMarkable 1, or `archs=(rm1 rm2)` for a package that works both on reMarkable 1 and reMarkable 2 but needs different dependencies or compilation flags for each of those.
 
@@ -245,6 +250,8 @@ Should match the upstream name as closely as possible.
 The `build()` function runs in the context of a Docker container with the chosen `image`.
 This function has access to all the metadata variables declared above, plus the `$arch` variable which contains the name of the architecture the recipe is currently being built for.
 The working directory is `$srcdir`, which is populated with all the sources declared in `sources`.
+If you are going to build aarch64 binaries, you must switch to suitable environment variables by sourcing `/opt/x-tools/switch-aarch64.sh`.
+If you need to go back to ARMv7, you can source `/opt/x-tools/switch-arm.sh`.
 
 ### Package Section
 
